@@ -1,10 +1,17 @@
+---
 language: java
+
+sudo: required
+dist: trusty
 
 jdk:
   - oraclejdk8
 
 env:
   - UI_DIR=ui
+
+services:
+  - docker
 
 cache:
   directories:
@@ -21,6 +28,11 @@ before_install:
   - bower install
   - grunt build && cd ..
 
+install:
+  # Build docker image
+  - docker build -t square/keywhiz .
+
 script:
+  # Build keywhiz and run tests, reports
   - mvn test findbugs:check jacoco:report coveralls:report -P h2
-  - cd $UI_DIR && grunt test
+  - cd $UI_DIR && grunt test && cd -

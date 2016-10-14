@@ -104,7 +104,7 @@ keytool \
 
 echo -n "Generating configuration from template..."
 export KEYWHIZ_CONFIG=/data/keywhiz-docker.yaml
-envsubst < /usr/src/app/keywhiz-config.tpl > $KEYWHIZ_CONFIG
+envsubst < /usr/src/app/docker/keywhiz-config.tpl > $KEYWHIZ_CONFIG
 echo "done"
 
 echo

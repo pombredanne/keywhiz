@@ -4,7 +4,7 @@ RESET=$(tput -T xterm sgr0)
 RED=$(tput -T xterm setaf 1) 
 
 if [ "$1" == "wizard" ]; then
-    exec ./wizard.sh
+    exec /usr/src/app/docker/wizard.sh
 fi
 
 if [ -z "$KEYWHIZ_CONFIG" ]; then
@@ -18,7 +18,7 @@ if [ -z "$KEYWHIZ_CONFIG" ]; then
 fi
 
 if [ "$MIGRATE_ON_STARTUP" == "true" ]; then
-    java -jar server/target/keywhiz-server-*-SNAPSHOT-shaded.jar migrate $KEYWHIZ_CONFIG
+    java -jar server/target/keywhiz-server-*-SNAPSHOT-shaded.jar migrate "$KEYWHIZ_CONFIG"
 fi
 
-java -jar server/target/keywhiz-server-*-SNAPSHOT-shaded.jar $1 $KEYWHIZ_CONFIG
+java -jar server/target/keywhiz-server-*-SNAPSHOT-shaded.jar "$@" "$KEYWHIZ_CONFIG"

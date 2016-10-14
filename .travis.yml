@@ -27,6 +27,7 @@ before_install:
   - npm install
   - bower install
   - grunt build && cd ..
+  - mkdir /tmp/h2_data
 
 install:
   # Build docker image
@@ -34,5 +35,6 @@ install:
 
 script:
   # Build keywhiz and run tests, reports
+  - rm -rf /tmp/h2_data/*
   - mvn test findbugs:check jacoco:report coveralls:report -P h2
   - cd $UI_DIR && grunt test && cd -

@@ -3,11 +3,20 @@
 # Note: keep this in the root of the project next to
 # the pom.xml to work correctly.
 #
-# Building:
-#   docker build --rm --force-rm -t square/keywhiz .
+# Building (for H2 database):
+#   docker build \
+#       --rm --force-rm \
+#       --build-arg PROFILE=h2 \
+#       -t square/keywhiz .
+#
+# Building (for MySQL database):
+#   docker build \
+#       --rm --force-rm \
+#       --build-arg PROFILE=mysql \
+#       -t square/keywhiz .
 #
 # Basic usage:
-#   docker run -e KEYWHIZ_CONFIG=/path/to/config [COMMAND]
+#   docker run -e KEYWHIZ_CONFIG=/path/to/config [IMAGE] [COMMAND]
 #
 # If the KEYWHIZ_CONFIG environment variable is omitted, keywhiz
 # will run with the default development config. If COMMAND is
@@ -18,15 +27,23 @@
 #     docker volume create --name keywhiz-db-devel
 #
 #   Initialize the database, apply migrations, and add administrative user:
-#     docker run -v keywhiz-db-devel:/data square/keywhiz migrate
-#     docker run -it -v keywhiz-db-devel:/data square/keywhiz add-user
+#     docker run square/keywhiz migrate
+#     docker run -it square/keywhiz add-user
 #
 #   Finally, run the server with the default development config:
-#     docker run -it -p 4444:4444 -v keywhiz-db-devel:/data square/keywhiz server
+#     docker run -it -p 4444:4444 square/keywhiz server
+#
+#   Please note, the development config stores data (via H2) in
+#   /tmp/h2_data by default and does not provide persistence.
+#
+#   For a production deployment, you'll probably want to setup your
+#   own config to make sure you're not using development secrets.
 #
 # *** Production setup wizard ***
 #   For production deployments, we have setup wizard that will initialize
 #   a Keywhiz container for you and create a config based on a template.
+#   The template can be found at docker/keywhiz-config.tpl in the source
+#   repository if you want to do it yourself.
 #
 #   The wizard can be run using the "wizard" command, like so:
 #       docker run -it \
@@ -34,54 +51,42 @@
 #           -v keywhiz-secrets:/secrets \
 #           square/keywhiz wizard
 #
-#   Be ready to provide a server certificate/private key for setup.
+#   The /data and /secrets volumes will be used to store data. The 
+#   default database will be H2. If you'd like to use MySQL, please
+#   provide your own configuration. During the wizard setup, be
+#   ready to provide a server certificate/private key for keywhiz.
 #
 # After keywhiz starts up, you can access the admin console by going
 # to https://[DOCKER-MACHINE-IP]/ui in your browser. The default user
 # in development is keywhizAdmin and the default password is adminPass.
 #
-# Note that for a production deployment, you'll probably want to setup
-# your own config to make sure you're not using development secrets.
+# In production, the "add-user" command can be used to create an initial
+# administrative user in an otherwise empty database.
 #
 FROM maven:3.3-jdk-8
+
+ARG PROFILE=h2
+
+WORKDIR /usr/src/app
+ADD . /usr/src/app
 
 RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get -y install gettext vim-common && \
-    mkdir -p /usr/src/app
-WORKDIR /usr/src/app
-
-# caching trick to speed up build; see:
-# https://keyholesoftware.com/2015/01/05/caching-for-maven-docker-builds
-# this should allow non-dynamic dependencies to be cached
-COPY *.xml /usr/src/app/
-COPY api/pom.xml /usr/src/app/api/
-COPY cli/pom.xml /usr/src/app/cli/
-COPY client/pom.xml /usr/src/app/client/
-COPY hkdf/pom.xml /usr/src/app/hkdf/
-COPY model/pom.xml /usr/src/app/model/
-COPY server/pom.xml /usr/src/app/server/
-COPY testing/pom.xml /usr/src/app/testing/
-COPY log/pom.xml /usr/src/app/log/
-RUN mvn dependency:copy-dependencies -P docker --fail-never
-
-# copy source required for build and install
-COPY api /usr/src/app/api/
-COPY cli /usr/src/app/cli/
-COPY client /usr/src/app/client/
-COPY hkdf /usr/src/app/hkdf/
-COPY model /usr/src/app/model/
-COPY server /usr/src/app/server/
-COPY testing /usr/src/app/testing/
-COPY log /usr/src/app/log/
-RUN mvn install -P docker
-
-# Drop privs inside container
-RUN useradd -ms /bin/false keywhiz && \
+    # Build with given profile
+    mvn install -DskipTests=true -P $PROFILE && \
+    # Add keywhiz user
+    useradd -ms /bin/false keywhiz && \
+    # Create dirs for volumes and dev database
     mkdir /data && \
     chown keywhiz:keywhiz /data && \
     mkdir /secrets && \
-    chown keywhiz:keywhiz /secrets
+    chown keywhiz:keywhiz /secrets && \
+    mkdir -p /tmp/h2_data && \
+    chown keywhiz:keywhiz /tmp/h2_data && \
+    # Delete maven dependencies to reduce build size
+    rm -rf /root/m2
+
 USER keywhiz
 
 # Expose API port by default. Note that the admin console port
@@ -90,7 +95,4 @@ EXPOSE 4444
 
 VOLUME ["/data", "/secrets"]
 
-COPY docker/entry.sh /usr/src/app
-COPY docker/wizard.sh /usr/src/app
-COPY docker/keywhiz-config.tpl /usr/src/app
-ENTRYPOINT ["/usr/src/app/entry.sh"]
+ENTRYPOINT ["/usr/src/app/docker/entry.sh"]

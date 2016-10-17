@@ -74,7 +74,7 @@ RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get -y install gettext vim-common && \
     # Build with given profile
-    mvn install -DskipTests=true -P $PROFILE && \
+    mvn install -q -DskipTests=true -P $PROFILE && \
     # Add keywhiz user
     useradd -ms /bin/false keywhiz && \
     # Create dirs for volumes and dev database

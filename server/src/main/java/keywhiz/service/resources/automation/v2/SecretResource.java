@@ -3,9 +3,7 @@ package keywhiz.service.resources.automation.v2;
 import com.codahale.metrics.annotation.ExceptionMetered;
 import com.codahale.metrics.annotation.Timed;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
-import com.google.common.collect.UnmodifiableIterator;
 import io.dropwizard.auth.Auth;
 import java.time.Instant;
 import java.util.Base64;
@@ -516,8 +514,8 @@ public class SecretResource {
 
     // Record the read in the audit log, tracking which secrets were found and not found
     Map<String, String> extraInfo = new HashMap<>();
-    extraInfo.put("secrets_found", successSecrets.keySet().toString());
-    extraInfo.put("secrets_missing", errorSecrets.keySet().toString());
+    extraInfo.put("secrets_success", successSecrets.keySet().toString());
+    extraInfo.put("secrets_error", errorSecrets.keySet().toString());
     auditLog.recordEvent(new Event(Instant.now(), EventTag.SECRET_READCONTENT, automationClient.getName(), request.secrets().toString(), extraInfo));
 
     return SecretContentsResponseV2.builder()
